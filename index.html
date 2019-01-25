@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="manifest.json">
+    <link rel="shortcut icon" href="dynamodb.png">
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap@^4/dist/css/bootstrap.min.css" crossorigin="anonymous">
+    <title>DynamoDB Item Size and Consumed Capacity Calculator</title>
+    <style type="text/css">
+        #root {
+            width: 600px;
+            margin: 20px auto;
+        }
+
+        #input {
+            font-family: monospace;
+        }
+
+        #guide {
+            width: 100%;
+            border: 1px solid black;
+        }
+
+        .emoji {
+            width: 24px;
+            vertical-align: bottom;
+        }
+
+        #calculate {
+            width: 100%;
+        }
+
+        .hide {
+            display: none;
+        }
+
+        #error,
+        #output {
+            margin-top: 1rem;
+        }
+
+        #output>p {
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <noscript>
+        You need to enable JavaScript to run this app.
+    </noscript>
+    <div id="root">
+        <h1 class="text-center">
+            DynamoDB Item Size and Consumed Capacity Calculator
+        </h1>
+        <br />
+        <p class="text-center">
+            Made by
+            <a href="https://twitter.com/zaccharles0">Zac Charles
+                <img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f618.png" class="emoji" />
+            </a>
+        </p>
+        <br />
+        <div class="alert alert-info">
+            <p>This tool takes the JSON representation of a DynamoDB item and tells you its 
+                <strong>size in bytes</strong> and how many
+                <strong>capacity units</strong> it'll consume when reading and writing.</p>
+            <p>To use the tool, paste an item's DynamoDB JSON into the text area below and click
+                <strong>Calculate</strong>. This is a client-side tool, so your data stays in the browser.</p>
+            <p>You can get the DynamoDB JSON of an item using the AWS console by clicking the
+                <strong>item's key</strong>, switching to
+                <strong>Text view</strong>, and ensuring
+                <strong>DynamoDB JSON</strong> is checked.</p>
+            <p>
+                <a href="guide.png" target="_blank">
+                    <img src="guide.png" id="guide" />
+                </a>
+            </p>
+            <p>To learn more about this topic, please read my
+                <a href="#">
+                    <strong>blog post on Medium</strong>.
+                </a>
+            </p>
+        </div>
+        <form>
+            <div class="form-group">
+                <textarea class="form-control" id="input" rows="20">
+{
+    "id": {
+        "S": "f0ba8d6c"
+    },
+    "fullName": {
+        "S": "Zac Charles"
+    },
+    "someData": {
+        "B": "dGhpcyB0ZXh0IGlzIGJhc2U2NC1lbmNvZGVk"
+    },
+    "favouriteNumber": {
+        "N": "-1E-130"
+    },
+    "foods": {
+        "SS": [
+            "pizza",
+            "burger"
+        ]
+    }
+}</textarea>
+            </div>
+            <button type="button" class="btn btn-primary" id="calculate">Calculate</button>
+            <div class="alert alert-danger hide" id="error"></div>
+            <div class="alert alert-success hide" id="output"></div>
+        </form>
+    </div>
+    <script src="https://unpkg.com/jquery@^3/dist/jquery.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/decimal.js-light@^2/decimal.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/utf8@^3/utf8.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/Base64@^1/base64.js" crossorigin="anonymous"></script>
+    <script type="text/javascript">
+        var BASE_LOGICAL_SIZE_OF_NESTED_TYPES = 1;
+        var LOGICAL_SIZE_OF_EMPTY_DOCUMENT = 3;
+
+        function calculateItemSizeInBytes(item) {
+            if (!item) return 0;
+
+            var size = 0;
+
+            for (var name in item) {
+                if (!item.hasOwnProperty(name)) continue;
+
+                size += utf8.encode(name).length;
+                size += calculateAttributeSizeInBytes(item[name]);
+            }
+            return size;
+        }
+
+        function calculateAttributeSizeInBytes(attr) {
+            if (!attr) return 0;
+
+            // Binary
+            if (attr.hasOwnProperty('B')) {
+                return atob(attr.B).length;
+            }
+
+            // String
+            if (attr.hasOwnProperty('S')) {
+                return utf8.encode(attr.S).length;
+            }
+
+            // Number
+            if (attr.hasOwnProperty('N')) {
+                return calculateNumberSizeInBytes(attr.N);
+            }
+
+            // BinarySet
+            if (attr.hasOwnProperty('BS')) {
+                var size = 0;
+
+                for (var i = 0; i < attr.BS.length; i++) {
+                    size += atob(attr.BS[i]).length;
+                }
+
+                return size;
+            }
+
+            // StringSet
+            if (attr.hasOwnProperty('SS')) {
+                var size = 0;
+
+                for (var i = 0; i < attr.SS.length; i++) {
+                    size += utf8.encode(attr.SS[i]).length;
+                }
+
+                return size;
+            }
+
+            //  NumberSet
+            if (attr.hasOwnProperty('NS')) {
+                var size = 0;
+
+                for (var i = 0; i < attr.NS.length; i++) {
+                    size += calculateNumberSizeInBytes(attr.NS[i]);
+                }
+
+                return size;
+            }
+
+            // Boolean
+            if (attr.hasOwnProperty('BOOL')) {
+                return 1;
+            }
+
+            // Null
+            if (attr.hasOwnProperty('NULL')) {
+                return 1;
+            }
+
+            // Map
+            if (attr.hasOwnProperty('M')) {
+                var size = LOGICAL_SIZE_OF_EMPTY_DOCUMENT;
+
+                for (var name in attr.M) {
+                    if (!attr.M.hasOwnProperty(name)) continue;
+
+                    size += utf8.encode(name).length;
+                    size += calculateAttributeSizeInBytes(attr.M[name]);
+                    size += BASE_LOGICAL_SIZE_OF_NESTED_TYPES;
+                }
+
+                return size;
+            }
+
+            // List
+            if (attr.hasOwnProperty('L')) {
+                var size = LOGICAL_SIZE_OF_EMPTY_DOCUMENT;
+
+                for (var i = 0; i < attr.L.length; i++) {
+                    size += calculateAttributeSizeInBytes(attr.L[i]);
+                    size += BASE_LOGICAL_SIZE_OF_NESTED_TYPES;
+                }
+
+                return size;
+            }
+
+            throw "unknown data type in " + JSON.stringify(attr);
+        }
+
+        function calculateNumberSizeInBytes(n) {
+            var decimal = new Decimal(n);
+            var fixed = decimal.toFixed();
+            var size = measure(fixed.replace('-', '')) + 1;
+            if (fixed.startsWith('-')) size++;
+            if (size > 21) size = 21;
+            return size;
+        }
+
+        function measure(n) {
+            if (n.indexOf('.') !== -1) {
+                var parts = n.split('.');
+                var p0 = parts[0];
+                var p1 = parts[1];
+                if (p0 === '0') {
+                    p0 = '';
+                    p1 = zeros(p1, true);
+                }
+                if (p0.length % 2 !== 0) p0 = 'Z' + p0;
+                if (p1.length % 2 !== 0) p1 = p1 + 'Z';
+                return measure(p0 + p1);
+            }
+            n = zeros(n, true, true);
+            return Math.ceil(n.length / 2);
+        }
+
+        function zeros(n, left, right) {
+            while (left && true) {
+                var t = n.replace(/^(0{2})/, '');
+                if (t.length == n.length) break;
+                n = t;
+            }
+            while (right && true) {
+                var t = n.replace(/(0{2})$/, '');
+                if (t.length == n.length) break;
+                n = t;
+            }
+            return n;
+        }
+
+        $(() => {
+            var $error = $('#error');
+            var $output = $('#output');
+            var $input = $('#input');
+            var $htmlbody = $('html, body');
+
+            $('#calculate').click(() => {
+                $error.hide();
+                $output.hide();
+
+                var input = $input.val();
+                var item = null;
+
+                try {
+                    item = JSON.parse(input);
+                }
+                catch {
+                    $error.html('<img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f915.png" class="emoji" /> The JSON you\'ve entered is not valid DynamoDB item.');
+                    $error.show();
+                    $htmlbody.animate({ scrollTop: $(document).height() }, 'fast');
+                    return;
+                }
+
+                var size = calculateItemSizeInBytes(item);
+                var rcus = Math.ceil(size / 4096);
+                var wcus = Math.ceil(size / 1024);
+
+                var output = '';
+                output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f369.png" class="emoji" /> This DynamoDB item is <strong>${size.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} bytes</strong>.</p>`
+                output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f4aa.png" class="emoji" /> It will consume <strong>${rcus} RCUs</strong> when being <strong>read with strong consistency</strong>.</p>`
+                output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/23f1.png" class="emoji" /> It will consume <strong>${rcus / 2} RCUs</strong> when being <strong>read with eventual consistency</strong>.</p>`
+                output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/270d.png" class="emoji" /> It will consume <strong>${wcus} WCUs</strong> when being <strong>written</strong>.</p>`
+
+                $output.html(output);
+                $output.show();
+                $htmlbody.animate({ scrollTop: $(document).height() }, 'fast');
+            });
+        });
+    </script>
+</body>
+
+</html>
