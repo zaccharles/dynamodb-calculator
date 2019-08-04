@@ -229,6 +229,7 @@
 
         function calculateNumberSizeInBytes(n) {
             var decimal = new Decimal(n);
+            if (n == 0) return 0;
             var fixed = decimal.toFixed();
             var size = measure(fixed.replace('-', '')) + 1;
             if (fixed.startsWith('-')) size++;
