@@ -46,6 +46,15 @@
             margin-bottom: 6px;
         }
     </style>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-65334087-6"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'UA-65334087-6');
+    </script>
 </head>
 
 <body>
@@ -277,6 +286,8 @@
             $('#calculate').click(() => {
                 $error.hide();
                 $output.hide();
+
+                if (gtag) gtag('event', 'calculate');
 
                 var input = $input.val();
                 var item = null;
