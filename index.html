@@ -55,6 +55,7 @@
 
     gtag('config', 'UA-65334087-6');
     </script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.824.0.min.js"></script>    
 </head>
 
 <body>
@@ -95,6 +96,10 @@
             </p>
         </div>
         <form>
+            <div class="form-check">
+                <input checked type="checkbox" class="form-check-input" id="isDynamodbJSON">
+                <label class="form-check-label" for="isDynamodbJSON">DynamoDB JSON</label>
+            </div>
             <div class="form-group">
                 <textarea class="form-control" id="input" rows="20">
 {
@@ -104,8 +109,8 @@
     "fullName": {
         "S": "Zac Charles"
     },
-    "someData": {
-        "B": "dGhpcyB0ZXh0IGlzIGJhc2U2NC1lbmNvZGVk"
+    "isAdmin": {
+        "BOOL": "true"
     },
     "favouriteNumber": {
         "N": "-1E-130"
@@ -130,6 +135,8 @@
     <script type="text/javascript">
         var BASE_LOGICAL_SIZE_OF_NESTED_TYPES = 1;
         var LOGICAL_SIZE_OF_EMPTY_DOCUMENT = 3;
+        var marshall = AWS.DynamoDB.Converter.marshall;
+        var unmarshall = AWS.DynamoDB.Converter.unmarshall;
 
         function calculateItemSizeInBytes(item) {
             if (!item) return 0;
@@ -283,7 +290,20 @@
             var $input = $('#input');
             var $htmlbody = $('html, body');
 
+            $('#isDynamodbJSON').change((e) => {                
+                if(e.target.checked){                    
+                    $input.val(JSON.stringify(marshall(JSON.parse($input.val())),null,2));
+                }
+                else{
+                    $input.val(JSON.stringify(unmarshall(JSON.parse($input.val())),null,2));
+                }           
+            })
+
             $('#calculate').click(() => {
+                if(!$('#isDynamodbJSON').is(':checked')){                    
+                    $('#isDynamodbJSON').prop('checked', true);
+                    $input.val(JSON.stringify(marshall(JSON.parse($input.val())),null,2));
+                }
                 $error.hide();
                 $output.hide();
 
@@ -310,7 +330,9 @@
                 output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f369.png" class="emoji" /> This DynamoDB item is <strong>${size.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} bytes</strong>.</p>`
                 output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f4aa.png" class="emoji" /> It will consume <strong>${rcus} RCUs</strong> when being <strong>read with strong consistency</strong>.</p>`
                 output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/23f1.png" class="emoji" /> It will consume <strong>${rcus / 2} RCUs</strong> when being <strong>read with eventual consistency</strong>.</p>`
+                output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/270c.png" class="emoji" /> It will consume <strong>${rcus * 2} RCUs</strong> when being <strong>read with transactional request</strong>.</p>`
                 output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/270d.png" class="emoji" /> It will consume <strong>${wcus} WCUs</strong> when being <strong>written</strong>.</p>`
+                output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/270c.png" class="emoji" /> It will consume <strong>${wcus * 2} WCUs</strong> when being <strong>written with transactional request</strong>.</p>`
                 output += `<p style="text-align: center;margin-top: 16px;"><a href="https://www.buymeacoffee.com/zaccharles" title="Buy Me a Coffee" target="_blank" style="" class="btn btn-success btn-sm"><span style="position: relative;top: -2px;">☕</span> Buy Me A Coffee</a></p>`
 
                 $output.html(output);
