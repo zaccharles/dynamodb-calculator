@@ -376,7 +376,7 @@
 
                 var output = '';
                 output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f369.png" class="emoji" /> This DynamoDB item is <strong>${size.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} bytes</strong>.</p>`
-                output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f369.png" class="emoji" /> This largest attribute is  <em>${largestAttribute}</em> with <strong>${sizes[largestAttribute].total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} bytes</strong>.</p>`
+                output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f6a8.png" class="emoji" /> The largest attribute is  <em>${largestAttribute}</em> with <strong>${sizes[largestAttribute].total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} bytes</strong>.</p>`
                 output += `<p class="spaced"><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f4aa.png" class="emoji" /> It will consume <strong>${rcus} RCUs</strong> when being <strong>read with strong consistency</strong>.</p>`
                 output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/23f1.png" class="emoji" /> It will consume <strong>${rcus / 2} RCUs</strong> when being <strong>read with eventual consistency</strong>.</p>`
                 output += `<p><img src="https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f4da.png" class="emoji" /> It will consume <strong>${rcus * 2} RCUs</strong> when being <strong>read as part of a transaction</strong>.</p>`
